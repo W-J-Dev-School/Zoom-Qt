@@ -54,7 +54,7 @@ void MainWindow::initZoomSDK()
     initParam.strSupportUrl = L"https://zoom.us";
     initParam.emLanguageID = ZOOM_SDK_NAMESPACE::LANGUAGE_English;
     initParam.enableLogByDefault = true;
-//    initParam.obConfigOpts.optionalFeatures = (1 << 5); // Use Custom UI
+    initParam.obConfigOpts.optionalFeatures = (1 << 5); // Use Custom UI
 
     err = zoom::InitSDK(initParam);
     if (err == zoom::SDKERR_SUCCESS)
@@ -66,24 +66,6 @@ void MainWindow::initZoomSDK()
         std::cerr << "init failed" << std::endl;
         return;
     }
-
-//    //
-//    // Create UI
-//    //
-
-//    zoom::ICustomizedUIMgr *ui_mgr= NULL;
-//    err = zoom::CreateCustomizedUIMgr(&ui_mgr);
-//    if (err == zoom::SDKERR_SUCCESS)
-//    {
-//        std::cout << "ui manager succeeded" << std::endl;
-//    }
-//    else
-//    {
-//        std::cerr << "ui manager failed" << std::endl;
-//        return;
-//    }
-
-//    ui_mgr->SetEvent(this);
 
     //
     // Auth
@@ -159,6 +141,20 @@ void MainWindow::onLoginRet(zoom::LOGINSTATUS ret, zoom::IAccountInfo *)
     }
 }
 
+void MainWindow::onMeetingStatusChanged(zoom::MeetingStatus status, int)
+{
+    switch (status)
+    {
+    case zoom::MEETING_STATUS_INMEETING:
+        std::cout << "meeting status: in-meeting" << std::endl;
+        this->setupVideo();
+        break;
+    default:
+        std::cout << "meeting status: " << status << std::endl;
+        break;
+    }
+}
+
 void MainWindow::loginUser()
 {
     zoom::SDKError err;
@@ -208,36 +204,58 @@ void MainWindow::setupMeeting()
     meetingService->SetEvent(this);
 
     //
-    // Create Meeting
+    // Create Meeting UI
     //
 
-    zoom::StartParam startParam;
-    startParam.userType = zoom::SDK_UT_NORMALUSER;
-    startParam.param.normaluserStart.meetingNumber = 6375532764;
-
-    err = meetingService->Start(startParam);
+    zoom::ICustomizedUIMgr *ui_mgr= NULL;
+    err = zoom::CreateCustomizedUIMgr(&ui_mgr);
     if (err == zoom::SDKERR_SUCCESS)
     {
-        std::cout << "meeting succeeded" << std::endl;
+        std::cout << "ui manager succeeded" << std::endl;
     }
     else
     {
-        std::cerr << "meeting failed: " << err << std::endl;
+        std::cerr << "ui manager failed" << std::endl;
         return;
     }
 
+    ui_mgr->SetEvent(this);
+
+    //
+    // Create Video Container
+    //
+
+    HWND videoHandle = (HWND) this->ui->zoomVideo->winId();
+
+    RECT videoRect;
+    videoRect.top = 0;
+    videoRect.bottom = this->ui->zoomVideo->height();
+    videoRect.left = 0;
+    videoRect.right = this->ui->zoomVideo->width();
+
+    err = ui_mgr->CreateVideoContainer(&this->videoContainer, videoHandle, videoRect);
+    if (err == zoom::SDKERR_SUCCESS)
+    {
+        std::cout << "video container succeeded" << std::endl;
+    }
+    else
+    {
+        std::cerr << "video container failed" << std::endl;
+        return;
+    }
+
+    this->videoContainer->SetEvent(this);
+    this->videoContainer->Show();
 
 //    //
-//    // Join Meeting
+//    // Create Meeting
 //    //
 
-//    zoom::JoinParam joinParam;
-//    joinParam.userType = zoom::SDK_UT_NORMALUSER;
-//    joinParam.param.normaluserJoin.meetingNumber = 6375532764;
-//    joinParam.param.normaluserJoin.userName = L"App";
-//    joinParam.param.normaluserJoin.psw = L"5Nhdbj";
+//    zoom::StartParam startParam;
+//    startParam.userType = zoom::SDK_UT_NORMALUSER;
+//    startParam.param.normaluserStart.meetingNumber = 6375532764;
 
-//    err = meetingService->Join(joinParam);
+//    err = meetingService->Start(startParam);
 //    if (err == zoom::SDKERR_SUCCESS)
 //    {
 //        std::cout << "meeting succeeded" << std::endl;
@@ -247,9 +265,67 @@ void MainWindow::setupMeeting()
 //        std::cerr << "meeting failed: " << err << std::endl;
 //        return;
 //    }
+
+    //
+    // Join Meeting
+    //
+
+    zoom::JoinParam joinParam;
+    joinParam.userType = zoom::SDK_UT_NORMALUSER;
+    joinParam.param.normaluserJoin.meetingNumber = 6375532764;
+    joinParam.param.normaluserJoin.userName = L"App";
+    joinParam.param.normaluserJoin.psw = L"5Nhdbj";
+
+    err = meetingService->Join(joinParam);
+    if (err == zoom::SDKERR_SUCCESS)
+    {
+        std::cout << "meeting succeeded" << std::endl;
+    }
+    else
+    {
+        std::cerr << "meeting failed: " << err << std::endl;
+        return;
+    }
 }
 
-void onMeetingStatusChanged(zoom::MeetingStatus status, int)
+void MainWindow::setupVideo()
 {
-    std::cout << "meeting status: " << status << std::endl;
+    zoom::SDKError err;
+
+    //
+    // Create Video Render Element
+    //
+
+    zoom::IVideoRenderElement *videoElem = NULL;
+    err = this->videoContainer->CreateVideoElement(&videoElem, zoom::VideoRenderElement_ACTIVE);
+    if (err == zoom::SDKERR_SUCCESS)
+    {
+        std::cout << "video render element succeeded" << std::endl;
+    }
+    else
+    {
+        std::cerr << "video render element failed: " << err << std::endl;
+        return;
+    }
+
+    zoom::IActiveVideoRenderElement *activeVideoElem = dynamic_cast<zoom::IActiveVideoRenderElement *>(videoElem);
+
+    if (activeVideoElem)
+    {
+        std::cout << "cast to active video element succeeded" << std::endl;
+
+        RECT videoRect;
+        videoRect.top = 0;
+        videoRect.bottom = this->ui->zoomVideo->height();
+        videoRect.left = 0;
+        videoRect.right = this->ui->zoomVideo->width();
+
+        activeVideoElem->SetPos(videoRect);
+        activeVideoElem->Show();
+        activeVideoElem->Start();
+    }
+    else
+    {
+        std::cerr << "cast to active video element failed" << std::endl;
+    }
 }

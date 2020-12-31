@@ -8,6 +8,7 @@
 #include <auth_service_interface.h>
 #include <meeting_service_interface.h>
 #include <customized_ui/customized_ui_mgr.h>
+#include <customized_ui/customized_video_container.h>
 
 namespace zoom = ZOOM_SDK_NAMESPACE;
 
@@ -20,6 +21,7 @@ class MainWindow
         , public zoom::IAuthServiceEvent
         , public zoom::IMeetingServiceEvent
         , public zoom::ICustomizedUIMgrEvent
+        , public zoom::ICustomizedVideoContainerEvent
 {
     Q_OBJECT
 
@@ -30,6 +32,7 @@ public:
 private:
     void loginUser();
     void setupMeeting();
+    void setupVideo();
 
     Ui::MainWindow *ui;
 
@@ -39,6 +42,7 @@ private:
     std::wstring userPassword;
 
     zoom::IAuthService* authService;
+    zoom::ICustomizedVideoContainer *videoContainer;
 
     // Overrides for zoom::IAuthServiceEvent
     void onAuthenticationReturn(zoom::AuthResult ret) override;
@@ -48,7 +52,7 @@ private:
     void onZoomAuthIdentityExpired() override {}
 
     // Overrides for zoom::IMeetingServiceEvent
-    void onMeetingStatusChanged(zoom::MeetingStatus, int) override {};
+    void onMeetingStatusChanged(zoom::MeetingStatus status, int result) override;
     void onMeetingStatisticsWarningNotification(zoom::StatisticsWarningType) override {}
     void onMeetingSecureKeyNotification(const char *, int, zoom::IMeetingExternalSecureKeyHandler *) override {}
     void onMeetingParameterNotification(const zoom::MeetingParameter *) override {}
@@ -56,6 +60,14 @@ private:
     // Overrides for zoom::ICustomizedUIMgrEvent
     void onVideoContainerDestroyed(zoom::ICustomizedVideoContainer *) override {};
     void onShareRenderDestroyed(zoom::ICustomizedShareRender *) override {};
+
+    // Overrides for zoom::ICustomizedVideoContainerEvent
+    void onRenderUserChanged(zoom::IVideoRenderElement *, unsigned int) override {};
+    void onRenderDataTypeChanged(zoom::IVideoRenderElement *, zoom::VideoRenderDataType) override {};
+    void onLayoutNotification(RECT) override {};
+    void onVideoRenderElementDestroyed(zoom::IVideoRenderElement *) override {};
+    void onWindowMsgNotification(UINT, WPARAM, LPARAM) override {};
+    void onSubscribeUserFail(int, zoom::IVideoRenderElement*) override {};
 
 public slots:
     void initZoomSDK();
