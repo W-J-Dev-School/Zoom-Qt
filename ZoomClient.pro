@@ -15,13 +15,16 @@ LIBS += \
     -l$$PWD/dependencies/zoom-sdk/lib/sdk
 
 SOURCES += \
+    dialog.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    dialog.h \
     mainwindow.h
 
 FORMS += \
+    dialog.ui \
     mainwindow.ui
 
 # Default rules for deployment.

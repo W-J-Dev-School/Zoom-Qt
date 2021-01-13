@@ -33,6 +33,7 @@ private:
     void loginUser();
     void setupMeeting();
     void setupVideo();
+    void printStuff();
 
     Ui::MainWindow *ui;
 
@@ -42,6 +43,7 @@ private:
     std::wstring userPassword;
 
     zoom::IAuthService* authService;
+    zoom::IMeetingService *meetingService;
     zoom::ICustomizedVideoContainer *videoContainer;
 
     // Overrides for zoom::IAuthServiceEvent

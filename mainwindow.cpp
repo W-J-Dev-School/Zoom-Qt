@@ -8,6 +8,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <customized_ui/zoom_customized_ui.h>
+#include <meeting_service_components/meeting_audio_interface.h>
+#include <meeting_service_components/meeting_participants_ctrl_interface.h>
+
+#include "dialog.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -148,6 +152,7 @@ void MainWindow::onMeetingStatusChanged(zoom::MeetingStatus status, int)
     case zoom::MEETING_STATUS_INMEETING:
         std::cout << "meeting status: in-meeting" << std::endl;
         this->setupVideo();
+        this->printStuff();
         break;
     default:
         std::cout << "meeting status: " << status << std::endl;
@@ -189,8 +194,7 @@ void MainWindow::setupMeeting()
     // Create Meeting Service
     //
 
-    zoom::IMeetingService *meetingService = NULL;
-    err = zoom::CreateMeetingService(&meetingService);
+    err = zoom::CreateMeetingService(&this->meetingService);
     if (err == zoom::SDKERR_SUCCESS)
     {
         std::cout << "meeting service succeeded" << std::endl;
@@ -201,7 +205,7 @@ void MainWindow::setupMeeting()
         return;
     }
 
-    meetingService->SetEvent(this);
+    this->meetingService->SetEvent(this);
 
     //
     // Create Meeting UI
@@ -255,7 +259,7 @@ void MainWindow::setupMeeting()
 //    startParam.userType = zoom::SDK_UT_NORMALUSER;
 //    startParam.param.normaluserStart.meetingNumber = 6375532764;
 
-//    err = meetingService->Start(startParam);
+//    err = this->meetingService->Start(startParam);
 //    if (err == zoom::SDKERR_SUCCESS)
 //    {
 //        std::cout << "meeting succeeded" << std::endl;
@@ -276,7 +280,7 @@ void MainWindow::setupMeeting()
     joinParam.param.normaluserJoin.userName = L"App";
     joinParam.param.normaluserJoin.psw = L"5Nhdbj";
 
-    err = meetingService->Join(joinParam);
+    err = this->meetingService->Join(joinParam);
     if (err == zoom::SDKERR_SUCCESS)
     {
         std::cout << "meeting succeeded" << std::endl;
@@ -327,5 +331,18 @@ void MainWindow::setupVideo()
     else
     {
         std::cerr << "cast to active video element failed" << std::endl;
+    }
+}
+
+void MainWindow::printStuff()
+{
+    auto controller = this->meetingService->GetMeetingParticipantsController();
+    auto participants = controller->GetParticipantsList();
+
+    for (int i = 0; i < participants->GetCount(); ++i)
+    {
+        unsigned int id = participants->GetItem(i);
+        zoom::IUserInfo *user = controller->GetUserByUserID(id);
+        std::wcout << i << ": " << user->GetUserNameW() << std::endl;
     }
 }
